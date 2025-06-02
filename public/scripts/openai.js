@@ -534,6 +534,31 @@ async function validateReverseProxy() {
     accountStorage.setItem(rememberKey, String(true));
 }
 
+function countAssistantCount(chat) {
+    let count = 0;
+    for (let i = chat.length - 1; i >= 0; i--) {
+        let role = chat[i]['is_user'] ? 'user' : 'assistant';
+        if (role === 'assistant') {
+            count += 1;
+        }
+    }
+    return count;
+}
+
+function extractCodeBlocks(text) {
+    const codeBlockRegex = /```(?:[a-z]+\b)?\n?([\s\S]*?)```/g;
+
+    let match;
+    const blocks = [];
+
+    while ((match = codeBlockRegex.exec(text)) !== null) {
+        const fullBlock = match[0];
+        blocks.push(fullBlock);
+    }
+
+    return '\n\n' + blocks.join('\n\n');
+}
+
 /**
  * Formats chat messages into chat completion messages.
  * @param {object[]} chat - Array containing all messages.
@@ -543,9 +568,26 @@ function setOpenAIMessages(chat) {
     let j = 0;
     // clean openai msgs
     const messages = [];
+    const assistantCount = countAssistantCount(chat);
+    let currentAssistantCount = 0;
+    const contextWindow = 3;
     for (let i = chat.length - 1; i >= 0; i--) {
         let role = chat[j]['is_user'] ? 'user' : 'assistant';
         let content = chat[j]['mes'];
+        if (role === 'assistant' && chat[j]['swipes'] && chat[j]['swipes'][chat[j]['swipe_id']]) {
+            content = chat[j]['swipes'][chat[j]['swipe_id']];
+            if (assistantCount - currentAssistantCount > contextWindow) {
+                const detailsRegex = /<details>((?:(?!<details>)[\s\S])*?)<\/details>/g;
+                const matches = [...content.matchAll(detailsRegex)];
+                if (matches.length > 0) {
+                    const lastMatch = matches[matches.length - 1][0];
+                    content = lastMatch + extractCodeBlocks(content);
+                }
+            } else {
+                content = content.replace(/<think[\s\S]*?<\/think.*?>/gi, '').replace(/<guifan[\s\S]*?<\/guifan.*?>/gi, '');;
+            }
+            currentAssistantCount += 1;
+        }
 
         // If this symbol flag is set, completely ignore the message.
         // This can be used to hide messages without affecting the number of messages in the chat.
