@@ -4149,7 +4149,7 @@ export async function Generate(type, { automatic_trigger, force_name2, quiet_pro
     // Determine token limit
     let this_max_context = getMaxContextSize();
 
-    if (!dryRun) {
+    if (true || !dryRun) {
         console.debug('Running extension interceptors');
         const aborted = await runGenerationInterceptors(coreChat, this_max_context, type);
 
@@ -5864,6 +5864,7 @@ function setInContextMessages(msgInContextCount, type) {
  * @throws {Error|object}
  */
 export async function sendGenerationRequest(type, data) {
+    console.log("generation request", type, data);
     if (main_api === 'openai') {
         return await sendOpenAIRequest(type, data.prompt, abortController.signal);
     }
